@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "sxope-ml-hcc-prediction"
+version = "0.1.0"
+description = ""
+authors = [
+    "Maksim Belyaev <m.belyaev@sxope.com>",
+    "Andrii Babii <a.babii@sxope.com>",
+    "Mikhail Lipkovich <m.lipkovich@sxope.com>",
+    "Aleksandr Pidodnia <a.pidodnia@sxope.com>",
+    "Ghazaros Barseghyan <g.barseghyan@sxope.com>",
+    "Vitaly Yakutenko <v.yakutenko@sxope.com>"
+]
+readme = "README.md"
+packages = [{include = "sxope_ml_hcc_prediction", from = "src"}]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+
+[tool.poetry.dependencies]
+python = ">=3.9,<3.11"
+pp-ds-ml-base = {git = "ssh://git@github.com/inventcorp/pp-ds-ml-base.git", rev = "13fb4fa66579f0e5f201d221624f0bff4ee38dec"}
+pre-commit = "^3.0.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
