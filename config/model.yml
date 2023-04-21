@@ -1,0 +1,15 @@
+torch_model_config:
+  !MLPAttentionConfig
+    dropout_p: 0.2
+    layer_dim: 4096
+    model_dim: 512
+    learning_rate: 7.5e-5
+    batch_size: 128
+early_stopper_sklearn_metric:
+  !SKLearnMetricConfig
+    sklearn_metric_name: "roc_auc"
+    greater_is_better: True
+mlflow_metrics_for_logging:
+  !SKLearnMetricConfig
+    sklearn_metric_name: "roc_auc"
+    greater_is_better: True

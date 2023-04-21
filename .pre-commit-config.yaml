@@ -56,4 +56,4 @@ repos:
       name: Static type checking
       language: python
       types: [python]
-      additional_dependencies: [numpy, types-PyYAML, cattrs, jinja2, attrs]
+      additional_dependencies: [types-PyYAML, cattrs, attrs]

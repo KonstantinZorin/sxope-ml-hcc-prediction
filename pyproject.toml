@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "sxope-ml-hcc-prediction"
-version = "0.1.0"
+version = "0.1.1"
 description = ""
 authors = [
     "Maksim Belyaev <m.belyaev@sxope.com>",
@@ -13,13 +13,28 @@ authors = [
 readme = "README.md"
 packages = [{include = "sxope_ml_hcc_prediction", from = "src"}]
 
+[[tool.poetry.source]]
+name = "sxope-ml-pypi"
+url = "https://us-east4-python.pkg.dev/pp-ds-ml-production/sxope-ml-pypi/simple"
+default = false
+secondary = true
+
+
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 
 [tool.poetry.dependencies]
 python = ">=3.9,<3.11"
-pp-ds-ml-base = {git = "ssh://git@github.com/inventcorp/pp-ds-ml-base.git", rev = "13fb4fa66579f0e5f201d221624f0bff4ee38dec"}
+pp-ds-ml-base = {version = "0.5.0", extras = ["torch", "gcp"]}
 pre-commit = "^3.0.4"
+python-dotenv = "^0.21.1"
+python-dateutil = "^2.8.2"
+tqdm = "^4.64.1"
+mlflow = "^2.2.2"
+argparse = "^1.4.0"
+
+[tool.poetry.group.dev.dependencies]
+ipykernel = "^6.21.2"
 
 
 [build-system]

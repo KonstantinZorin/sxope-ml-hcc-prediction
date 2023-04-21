@@ -1,3 +1,9 @@
 .idea
 .DS_Store
+.vscode
 __pycache__
+secrets
+/src/sxope_ml_hcc_prediction/static/data/
+/src/sxope_ml_hcc_prediction/static/meta/
+/models
+/artifacts_sample
