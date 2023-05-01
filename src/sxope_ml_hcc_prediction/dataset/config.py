@@ -55,7 +55,9 @@ class RawDataExtractor:
 
     def __attrs_post_init__(self):
         self.gbq_connector = BigQueryConnector(
-            BigQueryConnectorConfig(credentials_path=f"{AppConfig.project_root}/secrets/credentials.json")
+            BigQueryConnectorConfig(
+                credentials_path=f"{AppConfig.project_root}/secrets/credentials.json", project=os.environ["GOOGLE_PROJECT"]
+            )
         )
         if self.member_id_filter:
             self.member_id_filter_dict = {"member_id_transaction_entity_type_id": self.member_id_filter}

@@ -21,7 +21,9 @@ class GeneralBQScheme:
 
     def __attrs_post_init__(self):
         self.gbq_connector = BigQueryConnector(
-            BigQueryConnectorConfig(credentials_path=f"{AppConfig.project_root}/secrets/credentials.json")
+            BigQueryConnectorConfig(
+                credentials_path=f"{AppConfig.project_root}/secrets/credentials.json", project=os.environ["GOOGLE_PROJECT"]
+            )
         )
 
     def _get_id(
