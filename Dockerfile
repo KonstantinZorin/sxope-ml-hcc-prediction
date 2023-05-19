@@ -29,11 +29,12 @@ WORKDIR /app
 
 # Copy APP
 COPY /src /app/src
-COPY /models /app/models
+COPY /models/$env_type /app/models
 COPY /config /app/config
-COPY /secrets/credentials.json /app/secrets/credentials.json
-COPY poetry.lock pyproject.toml README.md predict.sh /app/
-COPY .env.$env_type /app/.env
+#COPY /secrets/credentials.json /app/secrets/credentials.json
+COPY poetry.lock pyproject.toml README.md /app/
+COPY container_tools/predict.sh container_tools/predict_hist.sh container_tools/initialization.sh /app/
+COPY .env.gke.$env_type /app/.env
 
 # Add non-root user
 ARG USERNAME=oracle
@@ -52,21 +53,30 @@ USER ${USERNAME}
 ENV HOME=/home/${USERNAME}
 RUN chmod 777 -R /home/${USERNAME}
 
-ENV ENV_FILE="/app/.env"
-ENV GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/credentials.json
+# Install google cloud sdk for current user
+ENV CLOUDSDK_CORE_DISABLE_PROMPTS=1
+ENV PATH $PATH:/home/${USERNAME}/google-cloud-sdk/bin
+RUN curl -sSL https://sdk.cloud.google.com | bash
 ENV PATH="/home/${USERNAME}/.local/bin:$PATH"
 
-# install poetry
+# Authentication 
+#ENV GOOGLE_APPLICATION_CREDENTIALS=/app/secrets/credentials.json
+#RUN gcloud auth activate-service-account --key-file=/app/secrets/credentials.json
+COPY /secrets/credentials.json $HOME/.config/gcloud/application_default_credentials.json
+
+# Install poetry
 RUN curl -sSL https://install.python-poetry.org | python3 - --version=1.3.2
 RUN poetry config installer.max-workers 4
 RUN poetry self add "keyrings.google-artifactregistry-auth"
 RUN poetry install -vvv
 
-# set environment
+# Set environment
+ENV ENV_FILE="/app/.env"
 RUN poetry run python src/sxope_ml_hcc_prediction/app_config.py
 
 # Delete secrets
-RUN rm secrets/credentials.json
+#RUN gcloud auth revoke sa-ml-caregaps-staging@pp-ds-ml-staging.iam.gserviceaccount.com
+#RUN rm secrets/credentials.json
+RUN rm $HOME/.config/gcloud/application_default_credentials.json
 
-#ENTRYPOINT ["predict.sh"]
-CMD ["sh", "predict.sh"]
+ENTRYPOINT ["/bin/bash"]

@@ -1,4 +1,3 @@
-import os
 import pickle
 import unittest
 import uuid
@@ -6,7 +5,7 @@ import uuid
 import mlflow
 from pp_ds_ml_base.config.model import BaseModelConfig
 
-from sxope_ml_hcc_prediction.app_config import AppConfig
+from sxope_ml_hcc_prediction.app_config import app_config
 from sxope_ml_hcc_prediction.train import TrainingPipeline
 
 
@@ -18,21 +17,17 @@ class DataBuildTests(unittest.TestCase):
         model_ver = "v0.0.1.dev"
         dataset_id = "575e1195b3314d38aea20a63af7ddbdf"
         with open(
-            AppConfig.project_root  # type: ignore
-            / "src/sxope_ml_hcc_prediction/static/meta/train"
-            / f"{os.environ['ENVIRONMENT_NAME']}/feature_columns.pkl",
+            app_config.train_meta_path / "feature_columns.pkl",
             "rb",
         ) as f:
             selected_feature_columns = pickle.load(f)
         with open(
-            AppConfig.project_root  # type: ignore
-            / "src/sxope_ml_hcc_prediction/static/meta/train"
-            / f"{os.environ['ENVIRONMENT_NAME']}/label_columns.pkl",
+            app_config.train_meta_path / "label_columns.pkl",
             "rb",
         ) as f:
             selected_label_columns = pickle.load(f)
         cls.pipe = TrainingPipeline(
-            config=BaseModelConfig.from_yaml(f"{AppConfig.project_root}/config/model.yml", "torch_model_config"),
+            config=BaseModelConfig.from_yaml(app_config.config_path, "torch_model_config"),
             selected_feature_columns=selected_feature_columns,
             selected_label_columns=selected_label_columns,
             model_ver=model_ver,
@@ -41,16 +36,17 @@ class DataBuildTests(unittest.TestCase):
         mlflow.start_run(
             run_name=uuid.uuid4().hex,
             tags={
-                f"{os.environ['MLFLOW_MODEL_NAME']}.model.version": model_ver,
-                f"{os.environ['MLFLOW_MODEL_NAME']}.data.version": dataset_id,
+                f"{app_config.model_name}.model.version": model_ver,
+                f"{app_config.model_name}.data.version": dataset_id,
             },
         )
 
-    # def test_data_download(self) -> None:
-    #     self.pipe.download_data()
+    def test_data_download(self) -> None:
+        self.pipe.download_data()
 
-    # def test_train(self) -> None:
-    #     self.pipe.train()
+    def test_train(self) -> None:
+        self.pipe.train()
+        self.pipe.save_model()
 
     def test_general_db_upload(self) -> None:
         self.pipe.save_general_db()

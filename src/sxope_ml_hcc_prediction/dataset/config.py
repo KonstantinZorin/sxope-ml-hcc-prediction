@@ -1,25 +1,25 @@
 import datetime
 import glob
 import itertools
-import os
+import pathlib
 import typing
 
 import attr
 import numpy as np
 import pandas as pd
-from pp_ds_ml_base.config.connector import (
-    BigQueryConnectorConfig,
-    CloudStorageConnectorConfig,
+from pp_ds_ml_base.config.connector import BigQueryConnectorConfig
+from pp_ds_ml_base.config.data_build import (
+    DatasetBuildConfig,
+    Environment,
+    FeatureStoreBuildConfig,
 )
-from pp_ds_ml_base.config.data_build import DatasetBuildConfig, FeatureStoreBuildConfig
 from pp_ds_ml_base.connectors.bigquery import BigQueryConnector
-from pp_ds_ml_base.connectors.cloud_storage import CloudStorageConnector
+from pp_ds_ml_base.data.datasets.base import BaseDataset
 from pp_ds_ml_base.etl.base import BaseETLPipeline
 from pp_ds_ml_base.features.features import EntityMappedDataset, Features
 from torch.utils.data import Dataset
 
-from sxope_ml_hcc_prediction.app_config import AppConfig
-from sxope_ml_hcc_prediction.models.unified_db import DatasetGeneralBQScheme
+from sxope_ml_hcc_prediction.app_config import ModelPhase, app_config
 
 
 @attr.s(auto_attribs=True)
@@ -55,9 +55,7 @@ class RawDataExtractor:
 
     def __attrs_post_init__(self):
         self.gbq_connector = BigQueryConnector(
-            BigQueryConnectorConfig(
-                credentials_path=f"{AppConfig.project_root}/secrets/credentials.json", project=os.environ["GOOGLE_PROJECT"]
-            )
+            BigQueryConnectorConfig(credentials_path=app_config.gcloud_secret_json, project=app_config.google_project)
         )
         if self.member_id_filter:
             self.member_id_filter_dict = {"member_id_transaction_entity_type_id": self.member_id_filter}
@@ -81,7 +79,7 @@ class RawDataExtractor:
         dataset_build_config = DatasetBuildConfig(
             feature_store_build_configs=[
                 FeatureStoreBuildConfig(
-                    credentials_path=f"{AppConfig.project_root}/secrets/credentials.json",
+                    credentials_path=app_config.gcloud_secret_json,
                     feature_entity_columns=["member_id_transaction_entity_type_id"],
                     feature_values_pivoting={
                         "columns": [
@@ -95,11 +93,11 @@ class RawDataExtractor:
                     date_start=self.date_start,
                     date_end=self.date_end,
                     data_source_service="bigquery",
-                    env=os.environ["ENVIRONMENT_NAME"],
+                    env=app_config.env_name,
                     pipeline_name="disease_registry",
                 ),
                 FeatureStoreBuildConfig(
-                    credentials_path=f"{AppConfig.project_root}/secrets/credentials.json",
+                    credentials_path=app_config.gcloud_secret_json,
                     feature_entity_columns=["member_id_transaction_entity_type_id"],
                     feature_values_pivoting={
                         "aggfunc": {
@@ -116,11 +114,11 @@ class RawDataExtractor:
                     date_start=self.date_start,
                     date_end=self.date_end,
                     data_source_service="bigquery",
-                    env=os.environ["ENVIRONMENT_NAME"],
+                    env=app_config.env_name,
                     pipeline_name="members_months",
                 ),
                 FeatureStoreBuildConfig(
-                    credentials_path=f"{AppConfig.project_root}/secrets/credentials.json",
+                    credentials_path=app_config.gcloud_secret_json,
                     feature_entity_columns=["member_id_transaction_entity_type_id"],
                     feature_values_pivoting={
                         "columns": [
@@ -135,11 +133,11 @@ class RawDataExtractor:
                     date_start=self.date_start,
                     date_end=self.date_end,
                     data_source_service="bigquery",
-                    env=os.environ["ENVIRONMENT_NAME"],
+                    env=app_config.env_name,
                     pipeline_name="members_months",
                 ),
                 FeatureStoreBuildConfig(
-                    credentials_path=f"{AppConfig.project_root}/secrets/credentials.json",
+                    credentials_path=app_config.gcloud_secret_json,
                     feature_entity_columns=["member_id_transaction_entity_type_id"],
                     feature_values_pivoting={
                         "columns": "ndc_product_pharm_classes",
@@ -150,11 +148,11 @@ class RawDataExtractor:
                     date_start=self.date_start,
                     date_end=self.date_end,
                     data_source_service="bigquery",
-                    env=os.environ["ENVIRONMENT_NAME"],
+                    env=app_config.env_name,
                     pipeline_name="members_prescriptions",
                 ),
                 FeatureStoreBuildConfig(
-                    credentials_path=f"{AppConfig.project_root}/secrets/credentials.json",
+                    credentials_path=app_config.gcloud_secret_json,
                     feature_entity_columns=["member_id_transaction_entity_type_id"],
                     feature_values_pivoting={
                         "columns": ["loinc_num"],
@@ -165,7 +163,7 @@ class RawDataExtractor:
                     date_start=self.date_start,
                     date_end=self.date_end,
                     data_source_service="bigquery",
-                    env=os.environ["ENVIRONMENT_NAME"],
+                    env=app_config.env_name,
                     pipeline_name="members_labs",
                 ),
             ]
@@ -176,7 +174,7 @@ class RawDataExtractor:
         label_build_config = DatasetBuildConfig(
             feature_store_build_configs=[
                 FeatureStoreBuildConfig(
-                    credentials_path=f"{AppConfig.project_root}/secrets/credentials.json",
+                    credentials_path=app_config.gcloud_secret_json,
                     feature_entity_columns=["member_id_transaction_entity_type_id"],
                     feature_values_pivoting={
                         "columns": [
@@ -190,7 +188,7 @@ class RawDataExtractor:
                     date_start=self.date_end + datetime.timedelta(days=1),
                     date_end=self.date_end + datetime.timedelta(days=self.days_label_after_features),
                     data_source_service="bigquery",
-                    env=os.environ["ENVIRONMENT_NAME"],
+                    env=app_config.env_name,
                     pipeline_name="disease_registry",
                 )
             ]
@@ -227,12 +225,15 @@ class RepoDataset(Dataset):
         return self.df_lengths[-1]
 
     def _idx_to_path(self, idx):
+        prev_df_length = 0
         for i, df_length in enumerate(self.df_lengths):
             if idx < df_length:
-                return self.paths[i]
+                return self.paths[i], idx - prev_df_length
+            else:
+                prev_df_length = df_length
 
     def __getitem__(self, idx: int) -> typing.Tuple[np.ndarray, np.ndarray]:
-        asking_df_path = self._idx_to_path(idx)
+        asking_df_path, idx = self._idx_to_path(idx)
         if self.current_path != asking_df_path:
             self.current_path = asking_df_path
             self.current_df = pd.read_pickle(asking_df_path)
@@ -245,39 +246,46 @@ class RepoDataset(Dataset):
         return X, y
 
 
-class OnlineDataset(Dataset):
-    def __init__(
-        self,
-        selected_feature_columns: list,
-        dataset_id: bytes,
-        member_ids_hexes: typing.Optional[typing.List[str]] = None,
-    ) -> None:
+@attr.s(auto_attribs=True, kw_only=True)
+class OnlineDataset(Dataset, BaseDataset):
+
+    selected_feature_columns: list
+
+    project: str = app_config.google_project
+    bucket_name: str = app_config.gcs_bucket
+    model_name: str = app_config.model_name
+
+    env_name: Environment = app_config.env_name
+
+    credentials_path: typing.Optional[pathlib.Path] = app_config.gcloud_secret_json
+
+    local_data_path: pathlib.Path = app_config.get_data_path(phase=ModelPhase.inference)
+
+    member_ids_hexes: typing.Optional[typing.List[str]] = None
+
+    date_start: datetime.datetime = attr.ib(init=False)
+    date_end: typing.Optional[datetime.datetime] = None
+
+    post_processor: PostProcessor = PostProcessor()
+
+    data: typing.Union[pd.DataFrame, EntityMappedDataset] = attr.ib(init=False)
+    X: np.ndarray = attr.ib(init=False)
+
+    def __attrs_post_init__(self):
+        super().__attrs_post_init__()
+
         self.date_start = datetime.datetime(year=2017, month=1, day=1)
-        self.date_end = datetime.datetime.utcnow()
+        if not self.date_end:
+            self.date_end = datetime.datetime.utcnow()
         data_extractor = RawDataExtractor(
             date_start=self.date_start,
             date_end=self.date_end,
             train_mode=False,
-            member_id_filter=member_ids_hexes,
+            member_id_filter=self.member_ids_hexes,
         )
         data = data_extractor.build_dataset()
-        self.dataset_id = dataset_id
-        self.post_processor = PostProcessor()
-        self.data = self.post_processor.transform(data, selected_feature_columns)
+        self.data = self.post_processor.transform(data, self.selected_feature_columns)
         self.X = data.data.values.to_numpy(dtype="float32")
-        self.local_data_path = (
-            f"{AppConfig.project_root}/src/sxope_ml_hcc_prediction/static/data/"
-            f"inference/{os.environ['ENVIRONMENT_NAME']}"
-        )
-        self.gcs_data_path = f"datasets/{os.environ['MLFLOW_MODEL_NAME']}/{self.dataset_id.hex()}/"
-        self.gsutil_uri = f"gs://{os.environ['GCS_BUCKET']}/{self.gcs_data_path}"
-        self.gcs_connector = CloudStorageConnector(
-            CloudStorageConnectorConfig(
-                credentials_path=AppConfig.project_root / "secrets/credentials.json",  # type: ignore
-                project=os.environ["GOOGLE_PROJECT"],
-                bucket_name=os.environ["GCS_BUCKET"],
-            )
-        )
 
     def __len__(self):
         return self.X.shape[0]
@@ -285,24 +293,7 @@ class OnlineDataset(Dataset):
     def __getitem__(self, idx: int) -> np.ndarray:
         return self.X[idx]
 
-    def save_dataset(self) -> None:
-        dataset_local_path = (
-            f"{self.local_data_path}/test/"
-            f"data_{self.date_start.strftime('%Y_%m_%d')}__{self.date_end.strftime('%Y_%m_%d')}.pkl"
+    def save_online_dataset(self):
+        super().save_dataset(
+            self.data, f"data_{self.date_start.strftime('%Y_%m_%d')}__{self.date_end.strftime('%Y_%m_%d')}.pkl", "test"
         )
-        os.makedirs(os.path.dirname(dataset_local_path), exist_ok=True)
-        with open(
-            dataset_local_path,
-            "wb",
-        ) as f:
-            self.data.data.values.to_pickle(f)
-
-    def upload_to_gcs(self) -> None:
-        self.gcs_connector.bulk_data_folder_upload(
-            target_path=f"{self.local_data_path}",
-            upload_path=self.gcs_data_path,
-        )
-
-    def upload_to_bq(self) -> None:
-        uploader = DatasetGeneralBQScheme(dataset_id=self.dataset_id, dataset_path=self.gsutil_uri)
-        uploader.upload_dataset_data()

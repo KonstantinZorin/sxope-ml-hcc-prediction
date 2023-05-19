@@ -5,7 +5,7 @@ import numpy as np
 from pp_ds_ml_base.config.metric import BaseMetricConfig
 from pp_ds_ml_base.metrics.base import BaseMetric, SKLearnMetric
 
-from sxope_ml_hcc_prediction.app_config import AppConfig
+from sxope_ml_hcc_prediction.app_config import app_config
 from sxope_ml_hcc_prediction.utils.scores import non_binary_score
 
 
@@ -16,7 +16,7 @@ class EarlyStopper:
     runtime_metric: float = attr.ib(init=False)
     best_metric: float = attr.ib(init=False)
     not_successful_fit_number: int = attr.ib(init=False)
-    config_path: pathlib.PosixPath = AppConfig.project_root / "config/model.yml"  # type: ignore
+    config_path: pathlib.Path = app_config.config_path
 
     def __attrs_post_init__(self) -> None:
         self.runtime_metric_inst = BaseMetric.from_config(
@@ -28,7 +28,7 @@ class EarlyStopper:
 
     def fit_number_over_limit(self, y_test: np.ndarray, y_pred: np.ndarray) -> bool:
         self.runtime_metric = np.mean(non_binary_score(self.runtime_metric_inst, y_test, y_pred))  # type: ignore
-        if self.runtime_metric >= self.best_metric:
+        if self.runtime_metric > self.best_metric:
             self.not_successful_fit_number = 0
             self.best_metric = self.runtime_metric
         else:

@@ -1,5 +1,4 @@
 import logging
-import os
 import typing
 
 import attr
@@ -8,6 +7,7 @@ import torch
 from pp_ds_ml_base.models.base import BaseModel
 from torch.utils.data import DataLoader
 
+from sxope_ml_hcc_prediction.app_config import app_config
 from sxope_ml_hcc_prediction.models.config import MLPAttentionConfig
 from sxope_ml_hcc_prediction.models.models_torch import MLPAttentionTorch
 from sxope_ml_hcc_prediction.utils.early_stoppers import EarlyStopper
@@ -36,7 +36,7 @@ class MLPAttentionModel(BaseModel):
             layer_dim=self.config.layer_dim,
             model_dim=self.config.model_dim,
         ).to(self.device)
-        self.epoch_num = 1 if os.environ["ENVIRONMENT_NAME"] == "staging" else 1000
+        self.epoch_num = 1 if app_config.env_name == "staging" else 1000
 
     def fit(self, train_dataloader: DataLoader, test_dataloader: DataLoader) -> None:
         self.optimizer = torch.optim.Adam(self.torch_model.parameters(), self.config.learning_rate)
@@ -49,7 +49,7 @@ class MLPAttentionModel(BaseModel):
                 labels = y_train.to(self.device)
                 self.optimizer.zero_grad()
                 pred = self.torch_model(x)
-                loss = self.torch_model.loss(pred, labels)
+                loss = self.torch_model.loss(pred, labels)  # type: ignore
                 loss.backward()
                 self.optimizer.step()
                 self.running_loss += loss.item()
@@ -71,7 +71,7 @@ class MLPAttentionModel(BaseModel):
     def predict(self, x: typing.Union[np.ndarray, torch.Tensor]) -> np.ndarray:
         if type(x) is not torch.Tensor:
             x = torch.Tensor(x, dtype=torch.float32)  # type: ignore
-        x = x.to(self.device)
+        x = x.to(self.device)  # type: ignore
         self.torch_model.train(False)
         with torch.no_grad():
             p = self.torch_model.forward(x)
@@ -80,7 +80,7 @@ class MLPAttentionModel(BaseModel):
     def predict_proba(self, x: typing.Union[np.ndarray, torch.Tensor]) -> np.ndarray:
         if type(x) is not torch.Tensor:
             x = torch.Tensor(x, dtype=torch.float32)  # type: ignore
-        x = x.to(self.device)
+        x = x.to(self.device)  # type: ignore
         self.torch_model.train(False)
         with torch.no_grad():
             p = self.torch_model.forward(x)
